@@ -27,10 +27,10 @@ const Home = () => {
       setLoadingVehicles(true);
       try {
         const response = await axios.get(
-          "http://localhost:5000/api/vehicles"
+          "https://traffic-solve-cors-backend.vercel.app/api/vehicles"
         );
         setVehicles(response.data);
-        
+
         // Automatically select the first vehicle if available
         if (response.data.length > 0) {
           setSelectedVehicle(response.data[0]._id);
@@ -52,10 +52,11 @@ const Home = () => {
       setLoadingTopics(true);
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/topics/vehicle/${selectedVehicle}`
+          `https://traffic-solve-cors-backend.vercel.app/api/topics/vehicle/${selectedVehicle}`
         );
         setTopics(response.data);
-        
+        console.log(response.data, "topics for vehicle");
+
         // Automatically select all topics for the selected vehicle
         const allTopicIds = response.data.map((topic) => topic._id);
         setSelectedTopics(new Set(allTopicIds));

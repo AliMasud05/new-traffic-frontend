@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000"; // Replace with your backend URL
+const API_BASE_URL = "https://new-traffic-backend.vercel.app"; // Replace with your backend URL
 
 export const fetchVehicles = async () => {
   const response = await axios.get(`${API_BASE_URL}/vehicles`);

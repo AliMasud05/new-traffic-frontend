@@ -36,7 +36,7 @@ const Admin = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/users",
+        "https://traffic-solve-cors-backend.vercel.app/api/users",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setUsers(response?.data?.data);
@@ -55,7 +55,7 @@ const Admin = () => {
     setDeletingAdmin(id);
     try {
       await axios.delete(
-        `http://localhost:5000/api/users/${id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/users/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Admin deleted successfully");
@@ -73,7 +73,7 @@ const Admin = () => {
     setCreatingAdmin(true);
     try {
       await axios.post(
-        "http://localhost:5000/api/users/register",
+        "https://traffic-solve-cors-backend.vercel.app/api/users/register",
         { username, email, password },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -106,7 +106,7 @@ const Admin = () => {
       if (editPassword) updateData.password = editPassword;
 
       await axios.put(
-        `http://localhost:5000/api/users/${editingUserId}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/users/${editingUserId}`,
         updateData,
         { headers: { Authorization: `Bearer ${token}` } }
       );

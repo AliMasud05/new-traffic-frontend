@@ -57,8 +57,10 @@ const AdminTopics = () => {
     const fetchData = async () => {
       try {
         const [topicsRes, vehiclesRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/topics"),
-          axios.get("http://localhost:5000/api/vehicles"),
+          axios.get("https://traffic-solve-cors-backend.vercel.app/api/topics"),
+          axios.get(
+            "https://traffic-solve-cors-backend.vercel.app/api/vehicles"
+          ),
         ]);
         setTopics(topicsRes.data);
         setVehicles(vehiclesRes.data);
@@ -117,7 +119,7 @@ const AdminTopics = () => {
       }
 
       await axios.post(
-        "http://localhost:5000/api/vehicles",
+        "https://traffic-solve-cors-backend.vercel.app/api/vehicles",
         { name: vehicleName, photo: imageUrl },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -127,7 +129,7 @@ const AdminTopics = () => {
       setImage(null);
       setImagePreview(null);
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles"
+        "https://traffic-solve-cors-backend.vercel.app/api/vehicles"
       );
       setVehicles(response.data);
     } catch (error) {
@@ -145,12 +147,12 @@ const AdminTopics = () => {
 
     try {
       await axios.delete(
-        `http://localhost:5000/api/vehicles/${selectedItem._id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/vehicles/${selectedItem._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Vehicle deleted successfully");
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles"
+        "https://traffic-solve-cors-backend.vercel.app/api/vehicles"
       );
       setVehicles(response.data);
     } catch (error) {
@@ -183,14 +185,14 @@ const AdminTopics = () => {
       }
 
       await axios.put(
-        `http://localhost:5000/api/vehicles/${selectedItem._id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/vehicles/${selectedItem._id}`,
         { name: vehicleName, photo: imageUrl },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       toast.success("Vehicle updated successfully");
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles"
+        "https://traffic-solve-cors-backend.vercel.app/api/vehicles"
       );
       setVehicles(response.data);
     } catch (error) {
@@ -222,7 +224,7 @@ const AdminTopics = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/topics",
+        "https://traffic-solve-cors-backend.vercel.app/api/topics",
         {
           name: topicField,
           vehicleIds: selectedVehicles,
@@ -235,7 +237,7 @@ const AdminTopics = () => {
         setTopicField("");
         setSelectedVehicles([]);
         const topicsRes = await axios.get(
-          "http://localhost:5000/api/topics"
+          "https://traffic-solve-cors-backend.vercel.app/api/topics"
         );
         setTopics(topicsRes.data);
       }
@@ -254,12 +256,12 @@ const AdminTopics = () => {
 
     try {
       await axios.delete(
-        `http://localhost:5000/api/topics/${selectedItem._id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/topics/${selectedItem._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success("Topic deleted successfully");
       const response = await axios.get(
-        "http://localhost:5000/api/topics"
+        "https://traffic-solve-cors-backend.vercel.app/api/topics"
       );
       setTopics(response.data);
     } catch (error) {
@@ -279,7 +281,7 @@ const AdminTopics = () => {
 
     try {
       await axios.put(
-        `http://localhost:5000/api/topics/${selectedItem._id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/topics/${selectedItem._id}`,
         {
           name: topicField,
           vehicleIds: selectedVehicles,
@@ -291,7 +293,7 @@ const AdminTopics = () => {
       setTopicField("");
       setSelectedVehicles([]);
       const response = await axios.get(
-        "http://localhost:5000/api/topics"
+        "https://traffic-solve-cors-backend.vercel.app/api/topics"
       );
       setTopics(response.data);
     } catch (error) {

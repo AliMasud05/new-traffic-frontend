@@ -318,7 +318,8 @@ const Exam = () => {
       const vehicleQuery = selectedVehicle; // Assuming `selectedVehicle` is already a string or ID
 
       // Fetch questions from the backend
-      const apiUrl = "http://localhost:5000/api/questions";
+      const apiUrl =
+        "https://traffic-solve-cors-backend.vercel.app/api/questions";
       const response = await axios.get(apiUrl);
 
       if (response?.data) {

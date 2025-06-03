@@ -44,7 +44,7 @@ console.log(question, "question in update modal");
     try {
       const topicsPromises = selectedVehicles.map((vehicleId) =>
         axios.get(
-          `http://localhost:5000/api/topics/vehicle/${vehicleId}`
+          `https://traffic-solve-cors-backend.vercel.app/api/topics/vehicle/${vehicleId}`
         )
       );
 
@@ -178,7 +178,7 @@ console.log(question, "question in update modal");
 
       // Update question
       await axios.put(
-        `http://localhost:5000/api/questions/${question._id}`,
+        `https://traffic-solve-cors-backend.vercel.app/api/questions/${question._id}`,
         questionData,
         {
           headers: {

@@ -100,11 +100,17 @@ const Exam = () => {
     }
   }, [timeLeft])
   // Navigation functions
-  const goToNextQuestion = () => {
-    if (currentQuestionIndex < examQuestions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1)
+const goToNextQuestion = () => {
+  if (currentQuestionIndex < examQuestions.length - 1) {
+    setCurrentQuestionIndex((prev) => prev + 1)
+  } else {
+    // If it's the last question, check if all questions are answered
+    const allAnswered = userAnswers.every((answer) => answer !== null)
+    if (allAnswered) {
+      handleResultClick() // Submit results if all questions are answered
     }
   }
+}
   const goToPrevQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1)
@@ -134,6 +140,10 @@ const Exam = () => {
         setCurrentQuestionIndex((prev) => prev + 1)
       }, 500)
     }
+  }
+  //handle terminate exam button click
+  const handleTerminateExam = () => {
+    navigate("/", { replace: true })
   }
   // Handle result submission
   const handleResultClick = () => {
@@ -274,13 +284,16 @@ const Exam = () => {
                 {/* Empty div to maintain alignment with the left side */}
                 <div className="mb-2 h-4"></div>
                 <button
-                  className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
-                  onClick={goToNextQuestion}
-                  disabled={currentQuestionIndex === examQuestions.length - 1}
-                >
-                  <p className="text-sm text-center">შემდეგი კითხვა</p>
-                  <img src={rightArrow} alt="next" className="w-8 h-6" />
-                </button>
+  className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
+  onClick={goToNextQuestion}
+  disabled={currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null)}
+>
+<p className="text-sm text-center">
+  {currentQuestionIndex === examQuestions.length - 1 ? 
+    "შედეგების ნახვა" : 
+    "შემდეგი კითხვა"}
+</p>  <img src={rightArrow} alt="next" className="w-8 h-6" />
+</button>
                 {/* Auto Move Next Checkbox positioned above the navigation button */}
                 <div className="mb-2">
                   <label className="flex items-center space-x-2">
@@ -487,7 +500,7 @@ const Exam = () => {
             <div className=" flex justify-end items-center gap-2 -mt-5">
               <button
                 className="w-36 h-14 p flex items-center justify-center gap-2 bg-[#DEDEDE] px-4 rounded-md"
-                onClick={handleResultClick}
+                onClick={handleTerminateExam}
                 >
                 <img src={Prohibition || "/placeholder.svg"} alt="prohibition" className="w-12 h-12" />
                 <p className="text-sm text-[#F74354] font-bold">ტესტის შეწყვეტა</p>

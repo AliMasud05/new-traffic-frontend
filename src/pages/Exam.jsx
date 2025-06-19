@@ -7,6 +7,9 @@ import rightArrow from "../assets/exam/image.png"
 import question1 from "../assets/exam/question.png"
 import Prohibition from "../assets/exam/Prohibition.png"
 import backicon from "../assets/exam/backicon.png"
+import icon_reload from "../assets/exam/icon-reload.png"
+import icon_arrow from "../assets/exam/icon-arrow-right.png"
+
 const Exam = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -23,8 +26,12 @@ const Exam = () => {
   const [autoMoveNext, setAutoMoveNext] = useState(false)
   const [showFailModal, setShowFailModal] = useState(false)
   const [vehicleCategory, setVehicleCategory] = useState("")
+  const [slideAnimation, setSlideAnimation] = useState("")
+  const [isExamTerminated, setIsExamTerminated] = useState(false)
+  
   // Extract selected topics and vehicle from location state
   const { selectedTopics, selectedVehicle } = location.state || {}
+
   // Fisher-Yates Shuffle Algorithm
   const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -33,6 +40,47 @@ const Exam = () => {
     }
     return array
   }
+
+  // Function to move current question to the end with animation
+  const moveQuestionToEnd = () => {
+    // Start slide down animation
+    setSlideAnimation("slide-down")
+    
+    setTimeout(() => {
+      setExamQuestions(prevQuestions => {
+        const newQuestions = [...prevQuestions]
+        const [movedQuestion] = newQuestions.splice(currentQuestionIndex, 1)
+        newQuestions.push(movedQuestion)
+        
+        // Also move the corresponding answer to maintain alignment
+        setUserAnswers(prevAnswers => {
+          const newAnswers = [...prevAnswers]
+          const [movedAnswer] = newAnswers.splice(currentQuestionIndex, 1)
+          newAnswers.push(movedAnswer)
+          return newAnswers
+        })
+        
+        return newQuestions
+      })
+      
+      // Reset animation and set slide up for new question
+      setSlideAnimation("slide-up")
+      
+      // After slide up animation, reset animation state
+      setTimeout(() => {
+        setSlideAnimation("")
+      }, 500)
+      
+      // Keep the same index if not at the end, otherwise stay at current position
+      if (currentQuestionIndex >= examQuestions.length - 1) {
+        setCurrentQuestionIndex(0)
+      }
+      // If not at the last question, the index automatically moves to next question
+      // since we removed current question and all subsequent questions shifted up
+      
+    }, 500) // Match this duration with slide-down animation
+  }
+
   // Fetch and shuffle questions
   const fetchAndShuffleQuestions = useCallback(async () => {
     setLoading(true)
@@ -80,6 +128,7 @@ const Exam = () => {
       setLoading(false)
     }
   }, [selectedTopics, selectedVehicle])
+
   // Fetch questions when the component mounts
   useEffect(() => {
     if (!selectedTopics || !selectedVehicle) {
@@ -88,34 +137,38 @@ const Exam = () => {
       fetchAndShuffleQuestions()
     }
   }, [fetchAndShuffleQuestions, selectedTopics, selectedVehicle, navigate])
+
   // Timer logic
   useEffect(() => {
-    if (timeLeft > 0) {
+    if (timeLeft > 0 && !isExamTerminated) {
       const timer = setInterval(() => {
         setTimeLeft((prev) => prev - 1)
       }, 1000)
       return () => clearInterval(timer)
-    } else {
+    } else if (timeLeft <= 0 && !isExamTerminated) {
       setShowFailModal(true)
     }
-  }, [timeLeft])
+  }, [timeLeft, isExamTerminated])
+
   // Navigation functions
-const goToNextQuestion = () => {
-  if (currentQuestionIndex < examQuestions.length - 1) {
-    setCurrentQuestionIndex((prev) => prev + 1)
-  } else {
-    // If it's the last question, check if all questions are answered
-    const allAnswered = userAnswers.every((answer) => answer !== null)
-    if (allAnswered) {
-      handleResultClick() // Submit results if all questions are answered
+  const goToNextQuestion = () => {
+    if (currentQuestionIndex < examQuestions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1)
+    } else {
+      // If it's the last question, check if all questions are answered
+      const allAnswered = userAnswers.every((answer) => answer !== null)
+      if (allAnswered) {
+        handleResultClick() // Submit results if all questions are answered
+      }
     }
   }
-}
+
   const goToPrevQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1)
     }
   }
+
   // Handle answer selection
   const handleAnswerClick = (option) => {
     if (userAnswers[currentQuestionIndex] !== null) return
@@ -141,10 +194,17 @@ const goToNextQuestion = () => {
       }, 500)
     }
   }
+
   //handle terminate exam button click
   const handleTerminateExam = () => {
-    navigate("/", { replace: true })
+    const confirmTerminate = window.confirm("დარწმუნებული ხართ, რომ გსურთ გამოცდის შეწყვეტა?")
+    
+    if (confirmTerminate) {
+      setIsExamTerminated(true)
+    }
+    // If cancel is clicked, do nothing and remain on the same page
   }
+
   // Handle result submission
   const handleResultClick = () => {
     const allAnswered = userAnswers.every((answer) => answer !== null)
@@ -163,19 +223,29 @@ const goToNextQuestion = () => {
       },
     })
   }
-  // Restart the exam
-  const restartExam = () => {
-    if (!selectedTopics || !selectedVehicle) {
-      alert("Unable to restart exam. Missing required data.")
-      return
-    }
-    fetchAndShuffleQuestions()
-    setShowFailModal(false)
+
+  // Restart the exam with same questions
+  const restartSameExam = () => {
+    setIsExamTerminated(false)
+    setCurrentQuestionIndex(0)
+    setUserAnswers(Array(examQuestions.length).fill(null))
+    setCorrectAnswers(0)
+    setWrongAnswers(0)
+    const includesCorD = vehicleCategory.includes("c") || vehicleCategory.includes("d")
+    setTimeLeft(includesCorD ? 2400 : 1800)
   }
+
+  // Restart the exam with new questions
+  const restartNewExam = () => {
+    setIsExamTerminated(false)
+    fetchAndShuffleQuestions()
+  }
+
   // Get current question
   const currentQuestion = examQuestions[currentQuestionIndex] || {}
   const userAnswer = userAnswers[currentQuestionIndex]
   const correctAnswer = currentQuestion.correctAnswer
+
   return (
     <div
       className="relative min-h-screen w-full text-white bg-cover bg-center flex flex-col"
@@ -183,58 +253,100 @@ const goToNextQuestion = () => {
         backgroundImage: "url('https://wallpapers.com/images/hd/logo-background-zgqtb9n3ieqmc3fx.jpg')",
       }}
     >
+      {/* Add custom CSS for animations */}
+      <style jsx>{`
+        .slide-down {
+          animation: slideDown 0.5s ease-in-out;
+        }
+        
+        .slide-up {
+          animation: slideUp 0.5s ease-in-out;
+        }
+        
+        @keyframes slideDown {
+          0% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh);
+            opacity: 0;
+          }
+        }
+        
+        @keyframes slideUp {
+          0% {
+            transform: translateY(-100vh);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+      
       <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative">
         <div className="min-h-screen">
           {/* Main content area */}
           <div className="flex-1 flex">
             <div className="w-full">
               {/* Main image and question area */}
-              <div className="relative bg-white overflow-hidden shadow-2xl border-2 border-[#e2d5d5]">
-                <div className="relative h-[500px] flex-1">
-                  <img
-                    src={
-                      currentQuestion.photo ||
-                      "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
-                    }
-                    alt="Question"
-                    className="w-full h-[100%] object-cover"
-                  />
-                  {/* Text overlay on image */}
-                  <div className="absolute -bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4">
-                    {/* question title */}
-                    <p className="text-sm leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
+              <div className={`relative overflow-hidden shadow-2xl  transition-all duration-300 ${slideAnimation}`}>
+                {isExamTerminated ? (
+                  // Show exam terminated message
+                  <div className="h-[200px] flex items-center justify-center ">
+                    <h1 className="text-5xl font-semibold tracking-tight text-[#FBE26F]">გამოცდა დასრულებულია</h1>
                   </div>
-                </div>
-                {/* Multiple choice options */}
-                <div className="bg-gray-800 text-white">
-                  <div className="grid grid-cols-2">
-                    {currentQuestion.options?.map((option, index) => {
-                      // Determine the background color based on answer state
-                      let bgClass = "hover:bg-gray-700"
-                      if (userAnswer !== null) {
-                        if (option === correctAnswer) {
-                          bgClass = "bg-green-600"
-                        } else if (option === userAnswer && userAnswer !== correctAnswer) {
-                          bgClass = "bg-red-600"
+                ) : (
+                  <>
+                    <div className="relative h-[500px] flex-1">
+                      <img
+                        src={
+                          currentQuestion.photo ||
+                          "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
                         }
-                      }
-                      return (
-                        <div
-                          key={index}
-                          className={`border-r border-b border-[#FFFFFF] p-4 cursor-pointer transition-colors ${bgClass}`}
-                          onClick={() => handleAnswerClick(option)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-[#FFFFFF] rounded flex items-center justify-center text-[#525352] font-extrabold p-2 text-xl">
-                              {index + 1}
+                        alt="Question"
+                        className="w-full h-[100%] object-cover"
+                      />
+                      {/* Text overlay on image */}
+                      <div className="absolute -bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4">
+                        {/* question title */}
+                        <p className="text-sm leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
+                      </div>
+                    </div>
+                    {/* Multiple choice options */}
+                    <div className="bg-gray-800 text-white">
+                      <div className="grid grid-cols-2">
+                        {currentQuestion.options?.map((option, index) => {
+                          // Determine the background color based on answer state
+                          let bgClass = "hover:bg-gray-700"
+                          if (userAnswer !== null) {
+                            if (option === correctAnswer) {
+                              bgClass = "bg-green-600"
+                            } else if (option === userAnswer && userAnswer !== correctAnswer) {
+                              bgClass = "bg-red-600"
+                            }
+                          }
+                          return (
+                            <div
+                              key={index}
+                              className={`border-r border-b border-[#FFFFFF] p-4 cursor-pointer transition-colors ${bgClass}`}
+                              onClick={() => handleAnswerClick(option)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-[#FFFFFF] rounded flex items-center justify-center text-[#525352] font-extrabold p-2 text-xl">
+                                  {index + 1}
+                                </div>
+                                <p className="text-sm leading-relaxed">{option}</p>
+                              </div>
                             </div>
-                            <p className="text-sm leading-relaxed">{option}</p>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -266,247 +378,277 @@ const goToNextQuestion = () => {
               </div>
             </div>
             <div className="flex flex-row  md:justify-end  flex-nowrap items-center -mt-14 md:-mt-10">
-              <div className="flex flex-col items-center">
-                
-                <button
-                  className="flex items-center gap-2 bg-[#535353] px-5  mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors h-16"
-                  onClick={goToPrevQuestion}
-                  disabled={currentQuestionIndex === 0}
-                >
-                  <img src={backicon || "/placeholder.svg"} alt="back" className="w-6 md:w-8" />
-                  <p className="flex flex-col text-xs md:text-sm">
-                    <span>მოლოდინის</span>
-                    <span>მდგომარეობა</span>
-                  </p>
-                </button>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                {/* Empty div to maintain alignment with the left side */}
-                <div className="mb-2 h-4"></div>
-                <button
-  className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
-  onClick={goToNextQuestion}
-  disabled={currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null)}
->
-<p className="text-sm text-center">
-  {currentQuestionIndex === examQuestions.length - 1 ? 
-    "შედეგების ნახვა" : 
-    "შემდეგი კითხვა"}
-</p>  <img src={rightArrow} alt="next" className="w-8 h-6" />
-</button>
-                {/* Auto Move Next Checkbox positioned above the navigation button */}
-                <div className="mb-2">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={autoMoveNext}
-                      onChange={(e) => setAutoMoveNext(e.target.checked)}
-                      className="form-checkbox h-4 w-4 text-blue-600"
-                    />
-                    <span className="text-white text-xs">ავტომატურად გადასვლა</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Progress bar with 40 segments */}
-<div className="flex h-6 mt-4 relative">
-  {Array.from({ length: examQuestions.length }).map((_, index) => {
-    const isAnswered = userAnswers[index] !== null;
-    const isCorrect = isAnswered && userAnswers[index] === examQuestions[index]?.correctAnswer;
-    const isCurrent = index === currentQuestionIndex;
-    
-    let bgColor = "bg-gray-200";
-    if (isAnswered) {
-      bgColor = isCorrect ? "bg-green-500" : "bg-red-500";
-    } else if (isCurrent) {
-      bgColor = "bg-yellow-300";
-    }
-
-    return (
-      <div
-        key={index}
-        className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 cursor-pointer`}
-        onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
-        onMouseLeave={() => setHoveredQuestionIndex(null)}
-        onClick={() => setCurrentQuestionIndex(index)}
-      >
-        {/* Question preview popup - only shown for answered questions */}
-        {hoveredQuestionIndex === index && isAnswered && (
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50 w-80 bg-white shadow-2xl overflow-hidden border-8 border-white">
-            {/* Main image section */}
-            <div className="relative h-48">
-              <img
-                src={
-                  examQuestions[index]?.photo ||
-                  "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
-                }
-                alt="Question preview"
-                className="w-full h-full object-cover"
-              />
-              {/* Question number overlay */}
-              <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm font-bold">
-                {index + 1}/{examQuestions.length}
-              </div>
-              {/* Status indicator */}
-              <div className="absolute top-2 right-2">
-                {isCorrect ? (
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-white"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
+              {!isExamTerminated ? (
+                <>
+                  <div className="flex flex-col items-center">
+                    <button
+                      className="flex items-center gap-2 bg-[#535353] px-5  mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] hover:text-black transition-colors h-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={moveQuestionToEnd}
+                      disabled={slideAnimation !== ""}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                      <img src={backicon || "/placeholder.svg"} alt="back" className="w-6 md:w-8" />
+                      <p className="flex flex-col text-xs md:text-sm">
+                      ბოლოსთვის მოტოვება
+                      </p>
+                    </button>
                   </div>
-                ) : (
-                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-white"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Empty div to maintain alignment with the left side */}
+                    <div className="mb-2 h-4"></div>
+                    <button
+                      className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
+                      onClick={goToNextQuestion}
+                      disabled={currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null)}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Question title below image */}
-            <div className="p-3 border-b border-gray-300 bg-[#374151] text-center ">
-              <p className="text-sm text-white font-medium">{examQuestions[index]?.title}</p>
-            </div>
-            
-            {/* Answer options section */}
-            <div className=" bg-gray-50">
-              {isCorrect ? (
-                // Single correct answer display
-                <div className="bg-green-100 p-3 rounded border border-green-300">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-green-700">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3 text-white"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
+                      <p className="text-sm text-center">
+                        {currentQuestionIndex === examQuestions.length - 1 ? 
+                          "შედეგების ნახვა" : 
+                          "შემდეგი კითხვა"}
+                      </p>  <img src={rightArrow} alt="next" className="w-8 h-6" />
+                    </button>
+                    {/* Auto Move Next Checkbox positioned above the navigation button */}
+                    <div className="mb-2">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={autoMoveNext}
+                          onChange={(e) => setAutoMoveNext(e.target.checked)}
+                          className="form-checkbox h-4 w-4 text-blue-600"
                         />
-                      </svg>
+                        <span className="text-white text-xs">ავტომატურად გადასვლა</span>
+                      </label>
                     </div>
-                    <p className="text-sm text-green-800 font-medium">{examQuestions[index]?.correctAnswer}</p>
                   </div>
-                </div>
+                </>
               ) : (
-                // Grid display for wrong answer (showing both correct and user's answer)
-                <div className="grid grid-cols-2 gap-1">
-                 
-                  
-                  {/* User's wrong answer */}
-                  <div className="bg-[#052029]/90 p-3 rounded border border-red-300">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-6 h-6  flex items-center justify-center ">
-                        {/* <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3 w-3 text-white"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg> */}
-                      </div>
-                      <p className="text-xs font-semibold text-white ">{userAnswers[index]}</p>
-                    </div>
-                  </div>
-
-                   {/* Correct answer */}
-                  <div className="bg-[#00831D] p-3 rounded border border-green-300">
-                    <div className="flex items-center gap-2 ">
-                      <div className="w-6 h-6  rounded-full flex items-center justify-center ">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-6 w-6 text-white"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-xs font-semibold text-white ">{examQuestions[index]?.correctAnswer}</p>
-                    </div>
-                  </div>
+                // Show single restart button when exam is terminated
+                <div className="flex justify-end  items-center ">
+                  <button
+                    className="flex items-center gap-2 bg-white  text-white font-bold py-6 px-8 rounded-lg transition-colors w-72"
+                    
+                  >
+                    
+                  </button>
                 </div>
               )}
             </div>
-            
-            {/* Result summary at bottom */}
-            <div className="bg-gray-100 p-3 border-t border-gray-300">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  {isCorrect ? (
-                    <>
-                      <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-green-700"></div>
-                      <span className="text-xs font-semibold text-green-700">Correct Answer</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-red-700"></div>
-                      <span className="text-xs font-semibold text-red-700">Wrong Answer</span>
-                    </>
+          </div>
+          {/* Progress bar with question segments - ALWAYS SHOW THIS */}
+          <div className="flex h-6 mt-4 relative">
+            {Array.from({ length: examQuestions.length }).map((_, index) => {
+              const isAnswered = userAnswers[index] !== null;
+              const isCorrect = isAnswered && userAnswers[index] === examQuestions[index]?.correctAnswer;
+              const isCurrent = index === currentQuestionIndex;
+              
+              let bgColor = "bg-gray-200";
+              if (isAnswered) {
+                bgColor = isCorrect ? "bg-green-500" : "bg-red-500";
+              } else if (isCurrent && !isExamTerminated) {
+                bgColor = "bg-yellow-300";
+              }
+
+              return (
+                <div
+                  key={index}
+                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${!isExamTerminated ? 'cursor-pointer' : 'cursor-default'}`}
+                  onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
+                  onMouseLeave={() => setHoveredQuestionIndex(null)}
+                  onClick={() => !isExamTerminated && setCurrentQuestionIndex(index)}
+                >
+                  {/* Question preview popup - only shown for answered questions */}
+                  {hoveredQuestionIndex === index && isAnswered && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50 w-80 bg-white shadow-2xl overflow-hidden border-8 border-white">
+                      {/* Main image section */}
+                      <div className="relative h-48">
+                        <img
+                          src={
+                            examQuestions[index]?.photo ||
+                            "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
+                          }
+                          alt="Question preview"
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Question number overlay */}
+                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm font-bold">
+                          {index + 1}/{examQuestions.length}
+                        </div>
+                        {/* Status indicator */}
+                        <div className="absolute top-2 right-2">
+                          {isCorrect ? (
+                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 text-white"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 text-white"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Question title below image */}
+                      <div className="p-3 border-b border-gray-300 bg-[#374151] text-center ">
+                        <p className="text-sm text-white font-medium">{examQuestions[index]?.title}</p>
+                      </div>
+                      
+                      {/* Answer options section */}
+                      <div className=" bg-gray-50">
+                        {isCorrect ? (
+                          // Single correct answer display
+                          <div className="bg-green-100 p-3 rounded border border-green-300">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-green-700">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-3 w-3 text-white"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                              <p className="text-sm text-green-800 font-medium">{examQuestions[index]?.correctAnswer}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          // Grid display for wrong answer (showing both correct and user's answer)
+                          <div className="grid grid-cols-2 gap-1">
+                            {/* User's wrong answer */}
+                            <div className="bg-[#052029]/90 p-3 rounded border border-red-300">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-6 h-6  flex items-center justify-center ">
+                                </div>
+                                <p className="text-xs font-semibold text-white ">{userAnswers[index]}</p>
+                              </div>
+                            </div>
+
+                            {/* Correct answer */}
+                            <div className="bg-[#00831D] p-3 rounded border border-green-300">
+                              <div className="flex items-center gap-2 ">
+                                <div className="w-6 h-6  rounded-full flex items-center justify-center ">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-white"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                                <p className="text-xs font-semibold text-white ">{examQuestions[index]?.correctAnswer}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Result summary at bottom */}
+                      <div className="bg-gray-100 p-3 border-t border-gray-300">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {isCorrect ? (
+                              <>
+                                <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-green-700"></div>
+                                <span className="text-xs font-semibold text-green-700">Correct Answer</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-red-700"></div>
+                                <span className="text-xs font-semibold text-red-700">Wrong Answer</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-                {/* <div className="text-xs text-gray-600">Click to navigate</div> */}
+              );
+            })}
+          </div>
+          
+          {/* Show congratulations message and restart buttons when exam is terminated */}
+          {isExamTerminated && (
+            <div className="mt-4 text-center">
+              <div className="rounded-lg shadow-lg p-6 mb-6">
+                <h2 className="text-3xl leading-10 font-bold text-[#FBE26F] mb-4">
+                  გილოცავთ! ახლა რომ ნამდვილ გამოცდას აბარებდეთ, თეორია მოშორებული გექნებოდათ.
+                </h2>
+                
+                {/* Test result actions */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+                  <button 
+                    onClick={restartSameExam}
+                    className="bg-white max-w-[210px] text-black flex gap-2 font-medium py-4 px-6 rounded-lg transition-colors duration-200 min-w-[200px]"
+                  >
+                    <img src={icon_reload} alt="reload" className="w-8 h-8" />
+                    <span className="text-xs text-wrap">ახლიდან დაწყება იგივე ბილეთებით</span>
+                  </button>
+                  <button 
+                    onClick={restartNewExam}
+                    className="bg-white text-black max-w-[210px] flex gap-2 font-medium py-4 px-6 rounded-lg transition-colors duration-200 min-w-[200px]"
+                  >
+                   <span className="text-xs text-wrap">ახალი გამოცდა სხვა ბილეთებით</span>
+                   <img src={icon_arrow} alt="arrow" className="w-8 h-8" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    );
-  })}
-</div>
+          )}
+          
           <div className="h-20 my-5 grid grid-cols-1 md:grid-cols-4 gap-4 ">
-            <div className="col-span-2 bg-[#303030] px-2 rounded-md flex justify-center items-center gap-2 h-16">
-              <img src={question1} alt="question" className="w-14 h-14" />
-              <p className="text-[13px]">
-                კულტურითი მინიშნება: არჩევა პანელის შიგთავსის შესვლა და დახურვა Enter-ს, ბეჭდვის ბლოკების მორგება —
-                დაჭერა Space.
-              </p>
-            </div>
-            <div className="hidden md:block col-span-2 mt-5">
-
-            <div className=" flex justify-end items-center gap-2 -mt-5">
-              <button
-                className="w-36 h-14 p flex items-center justify-center gap-2 bg-[#DEDEDE] px-4 rounded-md"
-                onClick={handleTerminateExam}
-                >
-                <img src={Prohibition || "/placeholder.svg"} alt="prohibition" className="w-12 h-12" />
-                <p className="text-sm text-[#F74354] font-bold">ტესტის შეწყვეტა</p>
-              </button>
-            </div>
+            {!isExamTerminated && (
+              <>
+                <div className="col-span-2 bg-[#303030] px-2 rounded-md flex justify-center items-center gap-2 h-16">
+                  <img src={question1} alt="question" className="w-14 h-14" />
+                  <p className="text-[13px]">
+                    კულტურითი მინიშნება: არჩევა პანელის შიგთავსის შესვლა და დახურვა Enter-ს, ბეჭდვის ბლოკების მორგება —
+                    დაჭერა Space.
+                  </p>
                 </div>
+                <div className="hidden md:block col-span-2 mt-5">
+                  <div className=" flex justify-end items-center gap-2 -mt-5">
+                    <button
+                      className="w-36 h-14 p flex items-center justify-center gap-2 bg-[#DEDEDE] px-4 rounded-md"
+                      onClick={handleTerminateExam}
+                    >
+                      <img src={Prohibition || "/placeholder.svg"} alt="prohibition" className="w-12 h-12" />
+                      <p className="text-sm text-[#F74354] font-bold">ტესტის შეწყვეტა</p>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -543,7 +685,14 @@ const goToNextQuestion = () => {
             </p>
             <button
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-              onClick={restartExam}
+              onClick={() => {
+                setShowFailModal(false)
+                if (!selectedTopics || !selectedVehicle) {
+                  alert("Unable to restart exam. Missing required data.")
+                  return
+                }
+                fetchAndShuffleQuestions()
+              }}
             >
               ახლიდან დაწყება
             </button>
@@ -553,4 +702,5 @@ const goToNextQuestion = () => {
     </div>
   )
 }
+
 export default Exam

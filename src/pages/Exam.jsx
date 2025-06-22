@@ -238,6 +238,7 @@ const Exam = () => {
   // Restart the exam with new questions
   const restartNewExam = () => {
     setIsExamTerminated(false)
+   navigate("/", { replace: true })
     fetchAndShuffleQuestions()
   }
 

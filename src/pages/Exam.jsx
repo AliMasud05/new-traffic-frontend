@@ -468,7 +468,12 @@ const Exam = () => {
                   }`}
                   onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
                   onMouseLeave={() => setHoveredQuestionIndex(null)}
-                  onClick={() => isAnswered && setCurrentQuestionIndex(index)}
+                  onClick={() => {
+                    // Toggle popup for clicked question if answered
+                    if (isAnswered) {
+                      setHoveredQuestionIndex(hoveredQuestionIndex === index ? null : index);
+                    }
+                  }}
                 >
                   {/* Question preview popup - only shown for answered questions */}
                   {hoveredQuestionIndex === index && isAnswered && (

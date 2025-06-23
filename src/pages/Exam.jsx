@@ -152,6 +152,9 @@ const Exam = () => {
 
   // Navigation functions
   const goToNextQuestion = () => {
+    // Only allow navigation if current question is answered
+    if (userAnswers[currentQuestionIndex] === null) return
+    
     if (currentQuestionIndex < examQuestions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1)
     } else {
@@ -164,8 +167,14 @@ const Exam = () => {
   }
 
   const goToPrevQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1)
+    // Find the previous answered question
+    let prevIndex = currentQuestionIndex - 1
+    while (prevIndex >= 0) {
+      if (userAnswers[prevIndex] !== null) {
+        setCurrentQuestionIndex(prevIndex)
+        return
+      }
+      prevIndex--
     }
   }
 
@@ -397,9 +406,12 @@ const Exam = () => {
                     {/* Empty div to maintain alignment with the left side */}
                     <div className="mb-2 h-4"></div>
                     <button
-                      className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
+                      className={`flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors ${
+                        userAnswers[currentQuestionIndex] === null ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                       onClick={goToNextQuestion}
-                      disabled={currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null)}
+                      disabled={userAnswers[currentQuestionIndex] === null || 
+                        (currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null))}
                     >
                       <p className="text-sm text-center">
                         {currentQuestionIndex === examQuestions.length - 1 ? 
@@ -451,10 +463,12 @@ const Exam = () => {
               return (
                 <div
                   key={index}
-                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${!isExamTerminated ? 'cursor-pointer' : 'cursor-default'}`}
+                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${
+                    isAnswered ? 'cursor-pointer' : 'cursor-default'
+                  }`}
                   onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
                   onMouseLeave={() => setHoveredQuestionIndex(null)}
-                  onClick={() => !isExamTerminated && setCurrentQuestionIndex(index)}
+                  onClick={() => isAnswered && setCurrentQuestionIndex(index)}
                 >
                   {/* Question preview popup - only shown for answered questions */}
                   {hoveredQuestionIndex === index && isAnswered && (

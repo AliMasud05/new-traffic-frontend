@@ -20,7 +20,8 @@ const Exam = () => {
   const [examQuestions, setExamQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [userAnswers, setUserAnswers] = useState([])
-  const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [maxExamTime, setMaxExamTime] = useState(0)
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [autoMoveNext, setAutoMoveNext] = useState(false)
@@ -28,6 +29,8 @@ const Exam = () => {
   const [vehicleCategory, setVehicleCategory] = useState("")
   const [slideAnimation, setSlideAnimation] = useState("")
   const [isExamTerminated, setIsExamTerminated] = useState(false)
+  const [examStarted, setExamStarted] = useState(false)
+  const [showResults, setShowResults] = useState(false)
   
   // Extract selected topics and vehicle from location state
   const { selectedTopics, selectedVehicle } = location.state || {}
@@ -43,7 +46,6 @@ const Exam = () => {
 
   // Function to move current question to the end with animation
   const moveQuestionToEnd = () => {
-    // Start slide down animation
     setSlideAnimation("slide-down")
     
     setTimeout(() => {
@@ -52,7 +54,6 @@ const Exam = () => {
         const [movedQuestion] = newQuestions.splice(currentQuestionIndex, 1)
         newQuestions.push(movedQuestion)
         
-        // Also move the corresponding answer to maintain alignment
         setUserAnswers(prevAnswers => {
           const newAnswers = [...prevAnswers]
           const [movedAnswer] = newAnswers.splice(currentQuestionIndex, 1)
@@ -63,22 +64,16 @@ const Exam = () => {
         return newQuestions
       })
       
-      // Reset animation and set slide up for new question
       setSlideAnimation("slide-up")
       
-      // After slide up animation, reset animation state
       setTimeout(() => {
         setSlideAnimation("")
       }, 500)
       
-      // Keep the same index if not at the end, otherwise stay at current position
       if (currentQuestionIndex >= examQuestions.length - 1) {
         setCurrentQuestionIndex(0)
       }
-      // If not at the last question, the index automatically moves to next question
-      // since we removed current question and all subsequent questions shifted up
-      
-    }, 500) // Match this duration with slide-down animation
+    }, 500)
   }
 
   // Fetch and shuffle questions
@@ -87,39 +82,41 @@ const Exam = () => {
     try {
       const topicsQuery = selectedTopics.join(",")
       const vehicleQuery = selectedVehicle
-      // Fetch questions from the backend
-      const apiUrl =
-        "https://traffic-solve-cors-backend.vercel.app/api/questions";
-      const response = await axios.get(apiUrl);
+      const apiUrl = "https://traffic-solve-cors-backend.vercel.app/api/questions"
+      const response = await axios.get(apiUrl)
       if (response?.data) {
-        // Filter questions by both vehicle and topics
         const filteredQuestions = response.data.filter(
           (question) =>
             question.vehicles.some((vehicle) => vehicle._id === vehicleQuery) &&
             topicsQuery.split(",").includes(question.topic._id)
-        );
-        // Shuffle the filtered questions
-        const shuffledQuestions = shuffleArray(filteredQuestions);
-        // Determine the number of questions based on vehicle category
-        const vehicleUrl = `https://traffic-solve-cors-backend.vercel.app/api/vehicles/${selectedVehicle}`;
-        const responseVehicle = await axios.get(vehicleUrl);
-        const vehicleName = responseVehicle?.data?.name;
-        const checkQuestionCategory = vehicleName.split(" ")[0];
-        setVehicleCategory(checkQuestionCategory.toLowerCase());
-        const includesCorD =
-          checkQuestionCategory.toLowerCase().includes("c") ||
-          checkQuestionCategory.toLowerCase().includes("d");
-        const questionLimit = includesCorD ? 40 : 30;
-        // Select the first `questionLimit` questions
-        const selectedQuestions = shuffledQuestions.slice(0, questionLimit);
-        setExamQuestions(selectedQuestions);
-        setUserAnswers(Array(selectedQuestions.length).fill(null));
-        setCurrentQuestionIndex(0);
-        setCorrectAnswers(0);
-        setWrongAnswers(0);
-        setTimeLeft(includesCorD ? 2400 : 1800); // Reset timer
+        )
+        
+        const shuffledQuestions = shuffleArray(filteredQuestions)
+        
+        const vehicleUrl = `https://traffic-solve-cors-backend.vercel.app/api/vehicles/${selectedVehicle}`
+        const responseVehicle = await axios.get(vehicleUrl)
+        const vehicleName = responseVehicle?.data?.name
+        const checkQuestionCategory = vehicleName.split(" ")[0]
+        setVehicleCategory(checkQuestionCategory.toLowerCase())
+        
+        const includesCorD = checkQuestionCategory.toLowerCase().includes("c") ||
+          checkQuestionCategory.toLowerCase().includes("d")
+        const questionLimit = includesCorD ? 40 : 30
+        const selectedQuestions = shuffledQuestions.slice(0, questionLimit)
+        
+        setExamQuestions(selectedQuestions)
+        setUserAnswers(Array(selectedQuestions.length).fill(null))
+        setCurrentQuestionIndex(0)
+        setCorrectAnswers(0)
+        setWrongAnswers(0)
+        const examDuration = includesCorD ? 2400 : 1800
+        setMaxExamTime(examDuration)
+        setTimeLeft(0)
+        setExamStarted(true)
+        setShowResults(false)
+        setIsExamTerminated(false)
       } else {
-        setError("No questions found in the database.");
+        setError("No questions found in the database.")
       }
     } catch (error) {
       console.error("API Error:", error)
@@ -140,34 +137,35 @@ const Exam = () => {
 
   // Timer logic
   useEffect(() => {
-    if (timeLeft > 0 && !isExamTerminated) {
+    if (examStarted && timeLeft < maxExamTime && !isExamTerminated && !showResults) {
       const timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1)
+        setTimeLeft((prev) => {
+          if (prev >= maxExamTime - 1) {
+            clearInterval(timer)
+            setShowFailModal(true)
+            return maxExamTime
+          }
+          return prev + 1
+        })
       }, 1000)
       return () => clearInterval(timer)
-    } else if (timeLeft <= 0 && !isExamTerminated) {
+    } else if (examStarted && timeLeft >= maxExamTime && !isExamTerminated && !showResults) {
       setShowFailModal(true)
     }
-  }, [timeLeft, isExamTerminated])
+  }, [timeLeft, maxExamTime, isExamTerminated, examStarted, showResults])
 
   // Navigation functions
   const goToNextQuestion = () => {
-    // Only allow navigation if current question is answered
     if (userAnswers[currentQuestionIndex] === null) return
     
     if (currentQuestionIndex < examQuestions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1)
     } else {
-      // If it's the last question, check if all questions are answered
-      const allAnswered = userAnswers.every((answer) => answer !== null)
-      if (allAnswered) {
-        handleResultClick() // Submit results if all questions are answered
-      }
+      handleResultClick()
     }
   }
 
   const goToPrevQuestion = () => {
-    // Find the previous answered question
     let prevIndex = currentQuestionIndex - 1
     while (prevIndex >= 0) {
       if (userAnswers[prevIndex] !== null) {
@@ -186,17 +184,18 @@ const Exam = () => {
     const updatedAnswers = [...userAnswers]
     updatedAnswers[currentQuestionIndex] = option
     setUserAnswers(updatedAnswers)
+    
     if (option === correctAnswer) {
       setCorrectAnswers((prev) => prev + 1)
     } else {
       setWrongAnswers((prev) => prev + 1)
-      // Check if user has exceeded allowed wrong answers
       const includesCorD = vehicleCategory.includes("c") || vehicleCategory.includes("d")
       const maxWrongAnswers = includesCorD ? 5 : 4
       if (wrongAnswers + 1 >= maxWrongAnswers) {
         setShowFailModal(true)
       }
     }
+    
     if (autoMoveNext && currentQuestionIndex < examQuestions.length - 1) {
       setTimeout(() => {
         setCurrentQuestionIndex((prev) => prev + 1)
@@ -204,50 +203,42 @@ const Exam = () => {
     }
   }
 
-  //handle terminate exam button click
+  // Handle terminate exam button click
   const handleTerminateExam = () => {
     const confirmTerminate = window.confirm("დარწმუნებული ხართ, რომ გსურთ გამოცდის შეწყვეტა?")
-    
     if (confirmTerminate) {
       setIsExamTerminated(true)
+      setShowResults(true)
     }
-    // If cancel is clicked, do nothing and remain on the same page
   }
 
   // Handle result submission
   const handleResultClick = () => {
     const allAnswered = userAnswers.every((answer) => answer !== null)
     if (!allAnswered) return
-    const totalQuestions = examQuestions.length
-    const passingPercentage = (correctAnswers / totalQuestions) * 100
-    const passStatus = passingPercentage >= 86.67
-    navigate("/result", {
-      state: {
-        correctAnswers,
-        wrongAnswers,
-        totalQuestions,
-        selectedTopics,
-        selectedVehicle,
-        passStatus,
-      },
-    })
+    
+    setShowResults(true)
+    setIsExamTerminated(true)
   }
 
   // Restart the exam with same questions
   const restartSameExam = () => {
     setIsExamTerminated(false)
+    setShowResults(false)
     setCurrentQuestionIndex(0)
     setUserAnswers(Array(examQuestions.length).fill(null))
     setCorrectAnswers(0)
     setWrongAnswers(0)
-    const includesCorD = vehicleCategory.includes("c") || vehicleCategory.includes("d")
-    setTimeLeft(includesCorD ? 2400 : 1800)
+    setTimeLeft(0)
+    setShowFailModal(false)
+    setExamStarted(true)
   }
 
   // Restart the exam with new questions
   const restartNewExam = () => {
     setIsExamTerminated(false)
-   navigate("/", { replace: true })
+    setShowResults(false)
+    navigate("/", { replace: true })
     fetchAndShuffleQuestions()
   }
 
@@ -263,7 +254,6 @@ const Exam = () => {
         backgroundImage: "url('https://wallpapers.com/images/hd/logo-background-zgqtb9n3ieqmc3fx.jpg')",
       }}
     >
-      {/* Add custom CSS for animations */}
       <style jsx>{`
         .slide-down {
           animation: slideDown 0.5s ease-in-out;
@@ -299,37 +289,26 @@ const Exam = () => {
       <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative">
         <div className="min-h-screen">
           {/* Main content area */}
-          <div className="flex-1 flex">
-            <div className="w-full">
-              {/* Main image and question area */}
-              <div className={`relative overflow-hidden shadow-2xl  transition-all duration-300 ${slideAnimation}`}>
-                {isExamTerminated ? (
-                  // Show exam terminated message
-                  <div className="h-[200px] flex items-center justify-center ">
-                    <h1 className="text-5xl font-semibold tracking-tight text-[#FBE26F]">გამოცდა დასრულებულია</h1>
-                  </div>
-                ) : (
-                  <>
+          {!showResults ? (
+            <>
+              <div className="flex-1 flex">
+                <div className="w-full">
+                  {/* Main image and question area */}
+                  <div className={`relative overflow-hidden shadow-2xl transition-all duration-300 ${slideAnimation}`}>
                     <div className="relative h-[500px] flex-1">
                       <img
-                        src={
-                          currentQuestion.photo ||
-                          "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
-                        }
+                        src={currentQuestion.photo || "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"}
                         alt="Question"
-                        className="w-full h-[100%] object-cover"
+                        className="w-full h-full object-cover"
                       />
-                      {/* Text overlay on image */}
                       <div className="absolute -bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4">
-                        {/* question title */}
-                        <p className="text-sm leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
+                        <p className="md:text-sm leading-relaxed mb-3 text-center text-[10px]">{currentQuestion.title}</p>
                       </div>
                     </div>
                     {/* Multiple choice options */}
                     <div className="bg-gray-800 text-white">
                       <div className="grid grid-cols-2">
                         {currentQuestion.options?.map((option, index) => {
-                          // Determine the background color based on answer state
                           let bgClass = "hover:bg-gray-700"
                           if (userAnswer !== null) {
                             if (option === correctAnswer) {
@@ -341,85 +320,80 @@ const Exam = () => {
                           return (
                             <div
                               key={index}
-                              className={`border-r border-b border-[#FFFFFF] p-4 cursor-pointer transition-colors ${bgClass}`}
+                              className={`border-r border-b border-[#FFFFFF] md:p-4 p-1 cursor-pointer transition-colors ${bgClass}`}
                               onClick={() => handleAnswerClick(option)}
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-[#FFFFFF] rounded flex items-center justify-center text-[#525352] font-extrabold p-2 text-xl">
+                                <div className="md:w-8 w-4 md:h-8 h-4 bg-[#FFFFFF] rounded flex items-center justify-center text-[#525352] font-extrabold p-2 md:text-xl text-xs">
                                   {index + 1}
                                 </div>
-                                <p className="text-sm leading-relaxed">{option}</p>
+                                <p className="md:text-sm text-[9px] text-justify leading-relaxed">{option}</p>
                               </div>
                             </div>
                           )
                         })}
                       </div>
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-2">
-            <div className="flex flex-wrap  gap-4 mb-7 items-center justify-center md:justify-start">
-              <div className="flex flex-col items-center gap-2 col-span-1">
-                <button className="bg-[#F0F2BD] text-[#008318] text-3xl font-bold py-2 px-8 rounded">
-                  {correctAnswers}
-                </button>
-                <p className="text-xs">სწორია</p>
-              </div>
-              <div className="flex flex-col items-center gap-2 col-span-1">
-                <button className="bg-[#F0F2BD] text-[#F74354] text-3xl font-bold py-2 px-8 rounded">
-                  {wrongAnswers}
-                </button>
-                <p className="text-xs">მცდარია</p>
-              </div>
-              <div className="flex flex-col items-center gap-2 col-span-1">
-                <button className="bg-[#F0F2BD] text-[#525352] text-3xl font-bold py-2 px-8 rounded">
-                  {currentQuestionIndex + 1}/<span className="text-sm">{examQuestions.length}</span>
-                </button>
-                <p className="text-xs">კითხვები</p>
-              </div>
-              <div className="flex flex-col items-center gap-2 col-span-2">
-                <button className="flex bg-[#F0F2BD] text-[#525352] text-3xl font-bold py-2 px-8 rounded">
-                  <span className="">00:</span> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
-                </button>
-                <p className="text-xs">დარჩენილი დრო</p>
-              </div>
-            </div>
-            <div className="flex flex-row  md:justify-end  flex-nowrap items-center -mt-14 md:-mt-10">
-              {!isExamTerminated ? (
-                <>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-2">
+                <div className="flex flex-wrap gap-4 mb-7 items-center justify-center md:justify-start">
+                  <div className="flex flex-col items-center gap-2 col-span-1">
+                    <button className="bg-[#F0F2BD] text-[#008318] md:text-3xl text-2xl font-bold py-2 md:px-8 px-6 rounded">
+                      {correctAnswers}
+                    </button>
+                    <p className="md:text-xs text-[9px]">სწორია</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 col-span-1">
+                    <button className="bg-[#F0F2BD] text-[#F74354] md:text-3xl text-2xl font-bold py-2 md:px-8 px-6 rounded">
+                      {wrongAnswers}
+                    </button>
+                    <p className="md:text-xs text-[9px]">მცდარია</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 col-span-1">
+                    <button className="bg-[#F0F2BD] text-[#525352] md:text-3xl text-2xl font-bold py-2 md:px-8 px-6 rounded">
+                      {currentQuestionIndex + 1}/<span className="text-sm">{examQuestions.length}</span>
+                    </button>
+                    <p className="md:text-xs text-[9px]">კითხვები</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 col-span-2">
+                    <button className="flex bg-[#F0F2BD] text-[#525352] md:text-3xl text-2xl font-bold py-2 md:px-8 px-6 rounded">
+                      00:{Math.floor(timeLeft / 60).toString().padStart(2, "0")}:{(timeLeft % 60).toString().padStart(2, "0")}
+                    </button>
+                    <p className="md:text-xs text-[9px]">დარჩენილი დრო</p>
+                  </div>
+                </div>
+                <div className="flex flex-row justify-center md:justify-end flex-nowrap items-center -mt-14 md:-mt-10">
                   <div className="flex flex-col items-center">
                     <button
-                      className="flex items-center gap-2 bg-[#535353] px-5  mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] hover:text-black transition-colors h-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 bg-[#535353] px-5 mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] hover:text-black transition-colors h-16 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={moveQuestionToEnd}
                       disabled={slideAnimation !== ""}
                     >
-                      <img src={backicon || "/placeholder.svg"} alt="back" className="w-6 md:w-8" />
+                      <img src={backicon} alt="back" className="w-6 md:w-8" />
                       <p className="flex flex-col text-xs md:text-sm">
-                      ბოლოსთვის მოტოვება
+                        ბოლოსთვის მოტოვება
                       </p>
                     </button>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    {/* Empty div to maintain alignment with the left side */}
                     <div className="mb-2 h-4"></div>
                     <button
-                      className={`flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors ${
+                      className={`flex items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors ${
                         userAnswers[currentQuestionIndex] === null ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                       onClick={goToNextQuestion}
-                      disabled={userAnswers[currentQuestionIndex] === null || 
-                        (currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null))}
+                      disabled={userAnswers[currentQuestionIndex] === null}
                     >
                       <p className="text-sm text-center">
                         {currentQuestionIndex === examQuestions.length - 1 ? 
                           "შედეგების ნახვა" : 
                           "შემდეგი კითხვა"}
-                      </p>  <img src={rightArrow} alt="next" className="w-8 h-6" />
+                      </p>
+                      <img src={rightArrow} alt="next" className="w-8 h-6" />
                     </button>
-                    {/* Auto Move Next Checkbox positioned above the navigation button */}
                     <div className="mb-2">
                       <label className="flex items-center space-x-2">
                         <input
@@ -432,149 +406,58 @@ const Exam = () => {
                       </label>
                     </div>
                   </div>
-                </>
-              ) : (
-                // Show single restart button when exam is terminated
-                <div className="flex justify-end  items-center ">
-                  <button
-                    className="flex items-center gap-2 bg-white  text-white font-bold py-6 px-8 rounded-lg transition-colors w-72"
-                    
-                  >
-                    
-                  </button>
                 </div>
-              )}
-            </div>
-          </div>
-          {/* Progress bar with question segments - ALWAYS SHOW THIS */}
-          <div className="flex h-6 mt-4 relative">
-            {Array.from({ length: examQuestions.length }).map((_, index) => {
-              const isAnswered = userAnswers[index] !== null;
-              const isCorrect = isAnswered && userAnswers[index] === examQuestions[index]?.correctAnswer;
-              const isCurrent = index === currentQuestionIndex;
+              </div>
               
-              let bgColor = "bg-gray-200";
-              if (isAnswered) {
-                bgColor = isCorrect ? "bg-green-500" : "bg-red-500";
-              } else if (isCurrent && !isExamTerminated) {
-                bgColor = "bg-yellow-300";
-              }
+              {/* Progress bar with question segments */}
+              <div className="flex h-6 mt-4 relative">
+                {Array.from({ length: examQuestions.length }).map((_, index) => {
+                  const isAnswered = userAnswers[index] !== null
+                  const isCorrect = isAnswered && userAnswers[index] === examQuestions[index]?.correctAnswer
+                  const isCurrent = index === currentQuestionIndex
+                  
+                  let bgColor = "bg-gray-200"
+                  if (isAnswered) {
+                    bgColor = isCorrect ? "bg-green-500" : "bg-red-500"
+                  } else if (isCurrent) {
+                    bgColor = "bg-yellow-300"
+                  }
 
-              return (
-                <div
-                  key={index}
-                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${
-                    isAnswered ? 'cursor-pointer' : 'cursor-default'
-                  }`}
-                  onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
-                  onMouseLeave={() => setHoveredQuestionIndex(null)}
-                  onClick={() => {
-                    // Toggle popup for clicked question if answered
-                    if (isAnswered) {
-                      setHoveredQuestionIndex(hoveredQuestionIndex === index ? null : index);
-                    }
-                  }}
-                >
-                  {/* Question preview popup - only shown for answered questions */}
-                  {hoveredQuestionIndex === index && isAnswered && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50 w-80 bg-white shadow-2xl overflow-hidden border-8 border-white">
-                      {/* Main image section */}
-                      <div className="relative h-48">
-                        <img
-                          src={
-                            examQuestions[index]?.photo ||
-                            "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
-                          }
-                          alt="Question preview"
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Question number overlay */}
-                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm font-bold">
-                          {index + 1}/{examQuestions.length}
-                        </div>
-                        {/* Status indicator */}
-                        <div className="absolute top-2 right-2">
-                          {isCorrect ? (
-                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5 text-white"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                  return (
+                    <div
+                      key={index}
+                      className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${
+                        isAnswered ? 'cursor-pointer' : 'cursor-default'
+                      }`}
+                      onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
+                      onMouseLeave={() => setHoveredQuestionIndex(null)}
+                      onClick={() => {
+                        if (isAnswered) {
+                          setHoveredQuestionIndex(hoveredQuestionIndex === index ? null : index)
+                        }
+                      }}
+                    >
+                      {/* Question preview popup */}
+                      {hoveredQuestionIndex === index && isAnswered && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50 w-80 bg-white shadow-2xl overflow-hidden border-8 border-white">
+                          <div className="relative h-48">
+                            <img
+                              src={
+                                examQuestions[index]?.photo ||
+                                "https://static.vecteezy.com/system/resources/previews/040/519/146/non_2x/vehicle-traffic-at-traffic-signal-vector.jpg"
+                              }
+                              alt="Question preview"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm font-bold">
+                              {index + 1}/{examQuestions.length}
                             </div>
-                          ) : (
-                            <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5 text-white"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Question title below image */}
-                      <div className="p-3 border-b border-gray-300 bg-[#374151] text-center ">
-                        <p className="text-sm text-white font-medium">{examQuestions[index]?.title}</p>
-                      </div>
-                      
-                      {/* Answer options section */}
-                      <div className=" bg-gray-50">
-                        {isCorrect ? (
-                          // Single correct answer display
-                          <div className="bg-green-100 p-3 rounded border border-green-300">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-green-700">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-3 w-3 text-white"
-                                  viewBox="0 0 20 20"
-                                  fill="currentColor"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                              <p className="text-sm text-green-800 font-medium">{examQuestions[index]?.correctAnswer}</p>
-                            </div>
-                          </div>
-                        ) : (
-                          // Grid display for wrong answer (showing both correct and user's answer)
-                          <div className="grid grid-cols-2 gap-1">
-                            {/* User's wrong answer */}
-                            <div className="bg-[#052029]/90 p-3 rounded border border-red-300">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-6 h-6  flex items-center justify-center ">
-                                </div>
-                                <p className="text-xs font-semibold text-white ">{userAnswers[index]}</p>
-                              </div>
-                            </div>
-
-                            {/* Correct answer */}
-                            <div className="bg-[#00831D] p-3 rounded border border-green-300">
-                              <div className="flex items-center gap-2 ">
-                                <div className="w-6 h-6  rounded-full flex items-center justify-center ">
+                            <div className="absolute top-2 right-2">
+                              {isCorrect ? (
+                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="h-6 w-6 text-white"
+                                    className="h-5 w-5 text-white"
                                     viewBox="0 0 20 20"
                                     fill="currentColor"
                                   >
@@ -585,45 +468,184 @@ const Exam = () => {
                                     />
                                   </svg>
                                 </div>
-                                <p className="text-xs font-semibold text-white ">{examQuestions[index]?.correctAnswer}</p>
+                              ) : (
+                                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-5 w-5 text-white"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="p-3 border-b border-gray-300 bg-[#374151] text-center">
+                            <p className="text-sm text-white font-medium">{examQuestions[index]?.title}</p>
+                          </div>
+                          
+                          <div className="bg-gray-50">
+                            {isCorrect ? (
+                              <div className="bg-green-100 p-3 rounded border border-green-300">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-green-700">
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-3 w-3 text-white"
+                                      viewBox="0 0 20 20"
+                                      fill="currentColor"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  </div>
+                                  <p className="text-sm text-green-800 font-medium">{examQuestions[index]?.correctAnswer}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-1">
+                                <div className="bg-[#052029]/90 p-3 rounded border border-red-300">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <div className="w-6 h-6 flex items-center justify-center"></div>
+                                    <p className="text-xs font-semibold text-white">{userAnswers[index]}</p>
+                                  </div>
+                                </div>
+
+                                <div className="bg-[#00831D] p-3 rounded border border-green-300">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full flex items-center justify-center">
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-6 w-6 text-white"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </div>
+                                    <p className="text-xs font-semibold text-white">{examQuestions[index]?.correctAnswer}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="bg-gray-100 p-3 border-t border-gray-300">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                {isCorrect ? (
+                                  <>
+                                    <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-green-700"></div>
+                                    <span className="text-xs font-semibold text-green-700">Correct Answer</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-red-700"></div>
+                                    <span className="text-xs font-semibold text-red-700">Wrong Answer</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-                      
-                      {/* Result summary at bottom */}
-                      <div className="bg-gray-100 p-3 border-t border-gray-300">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            {isCorrect ? (
-                              <>
-                                <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-green-700"></div>
-                                <span className="text-xs font-semibold text-green-700">Correct Answer</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-red-700"></div>
-                                <span className="text-xs font-semibold text-red-700">Wrong Answer</span>
-                              </>
-                            )}
-                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  )
+                })}
+              </div>
+              
+              <div className="h-20 my-5 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="col-span-2 bg-[#303030] px-2 rounded-md flex justify-center items-center gap-2 h-16">
+                  <img src={question1} alt="question" className="w-14 h-14" />
+                  <p className="md:text-[13px] text-xs">
+                    კულტურითი მინიშნება: არჩევა პანელის შიგთავსის შესვლა და დახურვა Enter-ს, ბეჭდვის ბლოკების მორგება — დაჭერა Space.
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-          
-          {/* Show congratulations message and restart buttons when exam is terminated */}
-          {isExamTerminated && (
+                <div className="hidden md:block col-span-2 mt-5">
+                  <div className="flex justify-end items-center gap-2 -mt-5">
+                    <button
+                      className="w-36 h-14 p flex items-center justify-center gap-2 bg-[#DEDEDE] px-4 rounded-md"
+                      onClick={handleTerminateExam}
+                    >
+                      <img src={Prohibition} alt="prohibition" className="w-12 h-12" />
+                      <p className="text-sm text-[#F74354] font-bold">ტესტის შეწყვეტა</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Results Display Section */
             <div className="mt-4 text-center">
               <div className="rounded-lg shadow-lg p-6 mb-6">
                 <h2 className="text-3xl leading-10 font-bold text-[#FBE26F] mb-4">
-                  გილოცავთ! ახლა რომ ნამდვილ გამოცდას აბარებდეთ, თეორია მოშორებული გექნებოდათ.
+                  {correctAnswers / examQuestions.length >= 0.8667 
+                    ? "გილოცავთ! თქვენ წარმატებით დაფარეთ გამოცდა!" 
+                    : "სამწუხაროდ, თქვენ ვერ გადალახეთ გამოცდა"}
                 </h2>
+                
+                {/* Results statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 max-w-2xl mx-auto">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-[#F0F2BD] text-[#008318] text-3xl font-bold py-2 px-6 rounded w-full">
+                      {correctAnswers}
+                    </div>
+                    <p className="text-sm text-white">სწორია</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-[#F0F2BD] text-[#F74354] text-3xl font-bold py-2 px-6 rounded w-full">
+                      {wrongAnswers}
+                    </div>
+                    <p className="text-sm text-white">მცდარია</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-[#F0F2BD] text-[#525352] text-3xl font-bold py-2 px-6 rounded w-full">
+                      {examQuestions.length}
+                    </div>
+                    <p className="text-sm text-white">კითხვები</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-[#F0F2BD] text-[#525352] text-xl font-bold py-2 px-6 rounded w-full">
+                      {Math.floor((correctAnswers / examQuestions.length) * 100)}%
+                    </div>
+                    <p className="text-sm text-white">შედეგი</p>
+                  </div>
+                </div>
+                
+                {/* Progress stepper showing correct/wrong answers */}
+                <div className="flex h-6 mt-8 mb-8 relative">
+                  {Array.from({ length: examQuestions.length }).map((_, index) => {
+                    const isAnswered = userAnswers[index] !== null
+                    const isCorrect = isAnswered && userAnswers[index] === examQuestions[index]?.correctAnswer
+                    
+                    let bgColor = "bg-gray-200"
+                    if (isAnswered) {
+                      bgColor = isCorrect ? "bg-green-500" : "bg-red-500"
+                    }
+
+                    return (
+                      <div
+                        key={index}
+                        className={`flex-1 border border-gray-800 ${bgColor}`}
+                        title={`Question ${index + 1}: ${isCorrect ? 'Correct' : 'Wrong'}`}
+                      />
+                    )
+                  })}
+                </div>
                 
                 {/* Test result actions */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
@@ -638,47 +660,23 @@ const Exam = () => {
                     onClick={restartNewExam}
                     className="bg-white text-black max-w-[210px] flex gap-2 font-medium py-4 px-6 rounded-lg transition-colors duration-200 min-w-[200px]"
                   >
-                   <span className="text-xs text-wrap">ახალი გამოცდა სხვა ბილეთებით</span>
-                   <img src={icon_arrow} alt="arrow" className="w-8 h-8" />
+                    <span className="text-xs text-wrap">ახალი გამოცდა სხვა ბილეთებით</span>
+                    <img src={icon_arrow} alt="arrow" className="w-8 h-8" />
                   </button>
                 </div>
               </div>
             </div>
           )}
-          
-          <div className="h-20 my-5 grid grid-cols-1 md:grid-cols-4 gap-4 ">
-            {!isExamTerminated && (
-              <>
-                <div className="col-span-2 bg-[#303030] px-2 rounded-md flex justify-center items-center gap-2 h-16">
-                  <img src={question1} alt="question" className="w-14 h-14" />
-                  <p className="text-[13px]">
-                    კულტურითი მინიშნება: არჩევა პანელის შიგთავსის შესვლა და დახურვა Enter-ს, ბეჭდვის ბლოკების მორგება —
-                    დაჭერა Space.
-                  </p>
-                </div>
-                <div className="hidden md:block col-span-2 mt-5">
-                  <div className=" flex justify-end items-center gap-2 -mt-5">
-                    <button
-                      className="w-36 h-14 p flex items-center justify-center gap-2 bg-[#DEDEDE] px-4 rounded-md"
-                      onClick={handleTerminateExam}
-                    >
-                      <img src={Prohibition || "/placeholder.svg"} alt="prohibition" className="w-12 h-12" />
-                      <p className="text-sm text-[#F74354] font-bold">ტესტის შეწყვეტა</p>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
         </div>
       </div>
+      
       {/* Fail Modal */}
       {showFailModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30">
           <div className="bg-white p-6 rounded-lg text-center mx-auto max-w-md">
             <h2 className="text-2xl font-bold text-red-600 mb-4">ვერ ჩააბარე!</h2>
             <div>
-              {timeLeft === 0 ? (
+              {timeLeft >= maxExamTime ? (
                 <img
                   src="https://res.cloudinary.com/deyqhzw8p/image/upload/v1741181253/sklpdwdpmzz3z3n3bdi1.gif"
                   alt="Time's Up"
@@ -693,7 +691,7 @@ const Exam = () => {
               )}
             </div>
             <p className="text-gray-700 mb-4">
-              {timeLeft === 0 ? (
+              {timeLeft >= maxExamTime ? (
                 <>
                   <span className="block">ჰმმმ! გავიდა დრო,</span>
                   <span className="block">სამწუხაროდ ჩაიჭერი გამოცდაში.</span>
@@ -707,11 +705,7 @@ const Exam = () => {
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
               onClick={() => {
                 setShowFailModal(false)
-                if (!selectedTopics || !selectedVehicle) {
-                  alert("Unable to restart exam. Missing required data.")
-                  return
-                }
-                fetchAndShuffleQuestions()
+                restartSameExam()
               }}
             >
               ახლიდან დაწყება

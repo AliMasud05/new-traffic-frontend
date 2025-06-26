@@ -308,7 +308,7 @@ const Exam = () => {
         <div className="min-h-screen">
           {/* Main content area */}
           <div className="flex-1 flex">
-            <div className="w-full mt-10">
+            <div className="w-full ">
               {/* Main image and question area */}
               <div className={`relative overflow-hidden shadow-2xl transition-all duration-300 ${slideAnimation}`}>
                 {isExamFinished ? (
@@ -320,9 +320,11 @@ const Exam = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="relative h-[500px] flex-1">
+
+                  
                       {/* Show image if available, otherwise show question title */}
                       {currentQuestion.photo ? (
+                        <div className="relative h-[500px] flex-1 -mt-4">
                         <>
                           <img
                             src={currentQuestion.photo}
@@ -334,17 +336,20 @@ const Exam = () => {
                             <p className="text-sm leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
                           </div>
                         </>
+                        </div>
+
                       ) : (
                         /* Show question title in image area when no image */
-                        <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center p-8">
-                          <div className="text-center">
-                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-relaxed">
+                        <div className="w-full h-[200px] bg-gradient-to-br from-gray-800 to-gray-900  border-[1px] border-white p-8
+                         flex flex-col items-center justify-center">
+                          <div className="text-center border-1 border-white">
+                            <h2 className="   font-bold text-white leading-relaxed">
                               {currentQuestion.title}
                             </h2>
                           </div>
                         </div>
                       )}
-                    </div>
+                    
                     {/* Multiple choice options */}
                     <div className="bg-gray-800 text-white">
                       <div className="grid grid-cols-2">
@@ -426,9 +431,16 @@ const Exam = () => {
                     {/* Empty div to maintain alignment with the left side */}
                     <div className="mb-2 h-4"></div>
                     <button
-                      className="flex !items-center bg-[#F9E57C] text-black font-bold h-[60px] px-4 rounded-lg cursor-pointer hover:bg-[#F0F2BD] transition-colors"
+                      className={`flex !items-center font-bold h-[60px] px-4 rounded-lg transition-colors ${
+                        userAnswer === null 
+                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                          : 'bg-[#F9E57C] text-black cursor-pointer hover:bg-[#F0F2BD]'
+                      }`}
                       onClick={goToNextQuestion}
-                      disabled={currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null)}
+                      disabled={
+                        userAnswer === null || 
+                        (currentQuestionIndex === examQuestions.length - 1 && !userAnswers.every((answer) => answer !== null))
+                      }
                     >
                       <p className="text-sm text-center">
                         {currentQuestionIndex === examQuestions.length - 1 ? 
@@ -480,10 +492,9 @@ const Exam = () => {
               return (
                 <div
                   key={index}
-                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} hover:bg-opacity-80 ${!isExamFinished ? 'cursor-pointer' : 'cursor-default'}`}
+                  className={`flex-1 border-2 border-[#1a0909] relative ${bgColor} ${isAnswered ? 'hover:bg-opacity-80' : ''}`}
                   onMouseEnter={() => isAnswered && setHoveredQuestionIndex(index)}
                   onMouseLeave={() => setHoveredQuestionIndex(null)}
-                  onClick={() => !isExamFinished && setCurrentQuestionIndex(index)}
                 >
                   {/* Question preview popup - only shown for answered questions */}
                   {hoveredQuestionIndex === index && isAnswered && (

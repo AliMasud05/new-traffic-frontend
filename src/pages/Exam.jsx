@@ -267,10 +267,10 @@ const Exam = () => {
 
   return (
     <div
-      className="relative min-h-screen w-full text-white bg-cover bg-center flex flex-col"
-      style={{
-        backgroundImage: "url('https://wallpapers.com/images/hd/logo-background-zgqtb9n3ieqmc3fx.jpg')",
-      }}
+      className="relative min-h-screen w-full text-white bg-cover bg-center flex flex-col bg-black"
+      // style={{
+      //   backgroundImage: "url('https://wallpapers.com/images/hd/logo-background-zgqtb9n3ieqmc3fx.jpg')",
+      // }}
     >
       {/* Add custom CSS for animations */}
       <style jsx>{`
@@ -325,17 +325,17 @@ const Exam = () => {
                   
                       {/* Show image if available, otherwise show question title */}
                       {currentQuestion.photo ? (
-                        <div className="relative h-[500px] flex-1 -mt-4">
+                        <div className="  flex-1 -mt-4">
                         <>
                           <img
                             src={currentQuestion.photo}
                             alt="Question"
-                            className="w-full h-full  object-fill bg-gray-900"
+                            className="w-full h-auto  object-cover "
                           />
                           {/* Text overlay on image when image is present */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-90 text-white p-4">
+                          {/* <div className=" bg-black bg-opacity-90 text-white p-4">
                             <p className="text-base font-semibold leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
-                          </div>
+                          </div> */}
                         </>
                         </div>
 
@@ -353,7 +353,7 @@ const Exam = () => {
                     
                     {/* Multiple choice options */}
                     <div className="bg-gray-800 text-white">
-                      <div className="grid grid-cols-2">
+                      <div className="grid grid-cols-2 border border-[#FFFFFF]">
                         {currentQuestion.options?.map((option, index) => {
                           // Determine the background color based on answer state
                           let bgClass = "hover:bg-gray-700"
@@ -653,9 +653,9 @@ const Exam = () => {
               
                 <h2 className="text-2xl leading-10 font-bold text-[#FBE26F] mb-4">
                   {isExamTerminated 
-                    ? "გილოცავთ! ახლა რომ ნამდვილ გამოცდას აბარებდეთ, თეორია მოშორებული გექნებოდათ."
+                    ? "ვერ ჩააბარეთ, კიდევ სცადეთ."
                     : examPassStatus 
-                      ? "ამ შედეგით მართვის მოწმობას ვერ აიღებდით... სცადეთ კიდევ ერთხელ, ყველაფერი გამოგივათ!"
+                      ? "ვერ ჩააბარეთ, კიდევ სცადეთ."
                       : "ამ შედეგით მართვის მოწმობას ვერ აიღებდით... სცადეთ კიდევ ერთხელ, ყველაფერი გამოგივათ!"
                   }
                 </h2>

@@ -332,8 +332,8 @@ const Exam = () => {
                             className="w-full h-full  object-fill bg-gray-900"
                           />
                           {/* Text overlay on image when image is present */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4">
-                            <p className="text-sm leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-90 text-white p-4">
+                            <p className="text-base font-bold leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
                           </div>
                         </>
                         </div>
@@ -342,8 +342,8 @@ const Exam = () => {
                         /* Show question title in image area when no image */
                         <div className="w-full h-[200px] bg-gradient-to-br from-gray-800 to-gray-900  border-[1px] border-white p-8
                          flex flex-col items-center justify-center">
-                          <div className="text-center border-1 border-white">
-                            <h2 className="   font-bold text-white leading-relaxed">
+                          <div className="text-center border-1 border-white ">
+                            <h2 className="text-xl   font-bold text-white leading-relaxed">
                               {currentQuestion.title}
                             </h2>
                           </div>

@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import logo from '/logo.jpg'
+import logo from '/logo.png'
 
 
 function Navbar() {

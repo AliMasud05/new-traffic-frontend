@@ -304,7 +304,7 @@ const Exam = () => {
         }
       `}</style>
       
-      <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative">
+      <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative mt-1">
         <div className="min-h-screen">
           {/* Main content area */}
           <div className="flex-1 flex">
@@ -333,7 +333,7 @@ const Exam = () => {
                           />
                           {/* Text overlay on image when image is present */}
                           <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-90 text-white p-4">
-                            <p className="text-base font-bold leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
+                            <p className="text-base font-semibold leading-relaxed mb-3 text-center">{currentQuestion.title}</p>
                           </div>
                         </>
                         </div>
@@ -343,7 +343,7 @@ const Exam = () => {
                         <div className="w-full h-[200px] bg-gradient-to-br from-gray-800 to-gray-900  border-[1px] border-white p-8
                          flex flex-col items-center justify-center">
                           <div className="text-center border-1 border-white ">
-                            <h2 className="text-xl   font-bold text-white leading-relaxed">
+                            <h2 className="  font-semibold text-white leading-relaxed">
                               {currentQuestion.title}
                             </h2>
                           </div>
@@ -417,7 +417,7 @@ const Exam = () => {
                 <>
                   <div className="flex flex-col items-center">
                     <button
-                      className="flex items-center gap-2 bg-[#535353] px-5  mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] hover:text-black transition-colors h-16 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 mt-1 md:mt-0 bg-[#535353] px-5  mr-2 rounded-lg cursor-pointer hover:bg-[#F0F2BD] hover:text-black transition-colors h-16 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={moveQuestionToEnd}
                       disabled={slideAnimation !== ""}
                     >
@@ -449,7 +449,7 @@ const Exam = () => {
                       </p>  <img src={rightArrow} alt="next" className="w-8 h-6" />
                     </button>
                     {/* Auto Move Next Checkbox positioned above the navigation button */}
-                    <div className="mb-2">
+                    <div className="mb-2 ">
                       <label className="flex items-center space-x-2">
                         <input
                           type="checkbox"
@@ -680,7 +680,7 @@ const Exam = () => {
                 <div className="flex justify-center items-center gap-2 mt-10">
                         <div className="max-w-xl bg-[#303030] px-2 rounded-md flex justify-center items-center gap-2 h-16">
                   <img src={question1} alt="question" className="w-14 h-14" />
-                  <p className="text-[13px]">
+                  <p className="md:text-[13px] text-[6px]">
                     კულტურითი მინიშნება: არჩევა პანელის შიგთავსის შესვლა და დახურვა Enter-ს, ბეჭდვის ბლოკების მორგება —
                     დაჭერა Space.
                   </p>

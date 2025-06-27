@@ -243,6 +243,7 @@ const Exam = () => {
     setIsExamCompleted(false)
     setExamPassStatus(null)
     fetchAndShuffleQuestions()
+    navigate("/", { replace: true })
   }
 
   // Get completion message based on exam status

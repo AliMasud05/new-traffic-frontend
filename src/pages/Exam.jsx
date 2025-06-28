@@ -187,11 +187,11 @@ const Exam = () => {
     } else {
       setWrongAnswers((prev) => prev + 1)
       // Check if user has exceeded allowed wrong answers
-      const includesCorD = vehicleCategory.includes("c") || vehicleCategory.includes("d")
-      const maxWrongAnswers = includesCorD ? 5 : 4
-      if (wrongAnswers + 1 >= maxWrongAnswers) {
-        setShowFailModal(true)
-      }
+      // const includesCorD = vehicleCategory.includes("c") || vehicleCategory.includes("d")
+      // const maxWrongAnswers = includesCorD ? 5 : 4
+      // if (wrongAnswers + 1 >= maxWrongAnswers) {
+      //   setShowFailModal(true)
+      // }
     }
     if (autoMoveNext && currentQuestionIndex < examQuestions.length - 1) {
       setTimeout(() => {
@@ -211,18 +211,31 @@ const Exam = () => {
   }
 
   // Handle result submission - now completes exam instead of navigating
-  const handleResultClick = () => {
-    const allAnswered = userAnswers.every((answer) => answer !== null)
-    if (!allAnswered) return
+const handleResultClick = () => {
+    const allAnswered = userAnswers.every((answer) => answer !== null);
+    if (!allAnswered) return;
     
-    const totalQuestions = examQuestions.length
-    const passingPercentage = (correctAnswers / totalQuestions) * 100
-    const passStatus = passingPercentage >= 86.67
+    const totalQuestions = examQuestions.length;
+    let maxWrong;
+    
+    // Set maximum allowed wrong answers based on total questions
+    if (totalQuestions === 40) {
+        maxWrong = 5; // For 40 questions, max 5 wrong
+    } else if (totalQuestions === 30) {
+        maxWrong = 4; // For 30 questions, max 4 wrong
+    } else {
+        // Default case (you can adjust this as needed)
+        maxWrong = Math.floor(totalQuestions * 0.125); // ~12.5% wrong allowed
+    }
+    
+    const wrongAnswers = totalQuestions - correctAnswers;
+    const passStatus = wrongAnswers <= maxWrong;
     
     // Set exam as completed and store pass status
-    setIsExamCompleted(true)
-    setExamPassStatus(passStatus)
-  }
+    setIsExamCompleted(true);
+    setExamPassStatus(passStatus);
+};
+  console.log("Exam Pass Status:", examPassStatus);
 
   // Restart the exam with same questions
   const restartSameExam = () => {
@@ -305,11 +318,11 @@ const Exam = () => {
         }
       `}</style>
       
-      <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative mt-1">
-        <div className="min-h-screen">
+      <div className="max-w-5xl mx-auto w-full flex flex-col h-full relative mt-2 ">
+        <div className="min-h-screen mx-2">
           {/* Main content area */}
           <div className="flex-1 flex">
-            <div className="w-full ">
+            <div className="w-full rounded-3xl ">
               {/* Main image and question area */}
               <div className={`relative overflow-hidden shadow-2xl transition-all duration-300 ${slideAnimation}`}>
                 {isExamFinished ? (
@@ -330,7 +343,7 @@ const Exam = () => {
                           <img
                             src={currentQuestion.photo}
                             alt="Question"
-                            className="w-full h-auto  object-cover "
+                            className="w-full h-auto  object-cover md:rounded-tr-[0px] md:rounded-tl-[0px]  rounded-tr-[30px] rounded-tl-[30px] "
                           />
                           {/* Text overlay on image when image is present */}
                           {/* <div className=" bg-black bg-opacity-90 text-white p-4">
@@ -341,7 +354,7 @@ const Exam = () => {
 
                       ) : (
                         /* Show question title in image area when no image */
-                        <div className="w-full h-[200px] bg-gradient-to-br from-gray-800 to-gray-900  border-[1px] border-white p-8
+                        <div className="w-full h-[200px] bg-gradient-to-br   from-gray-800 to-gray-900  border-[1px] border-white p-8
                          flex flex-col items-center justify-center">
                           <div className="text-center border-1 border-white ">
                             <h2 className="  font-semibold text-white leading-relaxed">
@@ -655,13 +668,13 @@ const Exam = () => {
                   {isExamTerminated 
                     ? "ვერ ჩააბარეთ, კიდევ სცადეთ."
                     : examPassStatus 
-                      ? "ვერ ჩააბარეთ, კიდევ სცადეთ."
-                      : "ამ შედეგით მართვის მოწმობას ვერ აიღებდით... სცადეთ კიდევ ერთხელ, ყველაფერი გამოგივათ!"
+                      ? "გილოცავთ! ახლა რომ ნამდვილად გამოცდას აბარებდეთ, თეორია მოშორებული გექნებოდათ"
+                      : "ვერ ჩააბარეთ, კიდევ სცადეთ."
                   }
                 </h2>
                 
                 {/* Test result actions */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+                <div className="flex flex-col flex-nowrap sm:flex-row gap-4 justify-center items-center mt-8">
                   <button 
                     onClick={restartSameExam}
                     className="bg-white max-w-[210px] text-black flex gap-2 font-medium py-4 px-6 rounded-lg transition-colors duration-200 min-w-[200px]"
@@ -751,7 +764,9 @@ const Exam = () => {
             <button
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
               onClick={() => {
-                setShowFailModal(false)
+                // setShowFai
+                // 
+                // lModal(false)
                 if (!selectedTopics || !selectedVehicle) {
                   alert("Unable to restart exam. Missing required data.")
                   return
